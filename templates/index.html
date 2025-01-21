@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Simulation App</title>
+  </head>
+  <body>
+    <h1>Simulation App</h1>
+
+    <!-- File Upload Section -->
+    <h2>Step 1: Upload Real-World Dataset</h2>
+    <form id="uploadForm" enctype="multipart/form-data">
+      <input type="file" id="file" name="file" required /><br /><br />
+      <button type="button" onclick="uploadFile()">Upload</button>
+    </form>
+    <pre id="uploadOutput"></pre>
+
+    <!-- Simulation Parameters Section -->
+    <h2>Step 2: Simulation Parameters</h2>
+    <form id="simulationForm">
+      <label for="start_date">Start Date:</label>
+      <input
+        type="date"
+        id="start_date"
+        name="start_date"
+        value="2023-01-01"
+        required
+      /><br /><br />
+      <label for="end_date">End Date:</label>
+      <input
+        type="date"
+        id="end_date"
+        name="end_date"
+        value="2023-12-31"
+        required
+      /><br /><br />
+      <label for="n_participants">Number of Participants:</label>
+      <input
+        type="number"
+        id="n_participants"
+        name="n_participants"
+        value="100"
+        required
+      /><br /><br />
+      <label for="n_providers">Number of Providers:</label>
+      <input
+        type="number"
+        id="n_providers"
+        name="n_providers"
+        value="20"
+        required
+      /><br /><br />
+      <label for="n_claims">Number of Claims:</label>
+      <input
+        type="number"
+        id="n_claims"
+        name="n_claims"
+        value="1000"
+        required
+      /><br /><br />
+      <button type="button" onclick="runSimulation()">Run Simulation</button>
+    </form>
+    <pre id="simulationOutput"></pre>
+
+    <script>
+      let extractedParameters = null;
+
+      async function uploadFile() {
+        const form = document.getElementById("uploadForm");
+        const formData = new FormData(form);
+
+        try {
+          const response = await fetch("/upload", {
+            method: "POST",
+            body: formData,
+          });
+
+          if (!response.ok) {
+            throw new Error(`Server error: ${response.statusText}`);
+          }
+
+          const result = await response.json();
+          extractedParameters = result.parameters; // Store extracted parameters for simulation
+          document.getElementById("uploadOutput").textContent = JSON.stringify(
+            result,
+            null,
+            2
+          );
+        } catch (error) {
+          console.error("File upload failed:", error);
+          document.getElementById(
+            "uploadOutput"
+          ).textContent = `Error: ${error.message}`;
+        }
+      }
+
+      async function runSimulation() {
+        const form = document.getElementById("simulationForm");
+        const formData = new FormData(form);
+
+        // Include extracted parameters from the upload step
+        if (!extractedParameters) {
+          document.getElementById("simulationOutput").textContent =
+            "Error: Please upload a dataset and extract parameters first.";
+          return;
+        }
+
+        // Append parameters as a JSON string
+        formData.append("parameters", JSON.stringify(extractedParameters));
+
+        try {
+          const response = await fetch("/simulate", {
+            method: "POST",
+            body: formData,
+          });
+
+          if (!response.ok) {
+            throw new Error(`Server error: ${response.statusText}`);
+          }
+
+          // Handle file download
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.style.display = "none";
+          a.href = url;
+          a.download = "simulated_data.xlsx";
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+
+          // Show success message
+          document.getElementById("simulationOutput").textContent =
+            "Simulation completed successfully! File downloaded.";
+        } catch (error) {
+          console.error("Simulation failed:", error);
+          document.getElementById(
+            "simulationOutput"
+          ).textContent = `Error: ${error.message}`;
+        }
+      }
+    </script>
+  </body>
+</html>
